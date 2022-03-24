@@ -1,0 +1,46 @@
+--- 
+title: "Final Project-Bookdown Portfolio"
+author: "AJ Lee"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+bibliography: [book.bib, packages.bib]
+# url: your book url like https://bookdown.org/yihui/bookdown
+# cover-image: path to the social sharing image like images/cover.jpg
+description: |
+  This is a minimal example of using the bookdown package to write a book.
+  The HTML output format for this example is bookdown::gitbook,
+  set in the _output.yml file.
+new_session: yes
+link-citations: yes
+delete_merged_file: true
+language:
+  ui:
+    chapter_name: "Chapter "
+github-repo: rstudio/bookdown-demo
+---
+
+# About
+ 
+This is a _portfolio_ book of the previous assignments using **Bookdown** package. 
+Each **bookdown** chapter is an '.Rmd file' of the weekly assignment that I have done 
+in ESS580A7 class so far. 
+
+
+## How to read this book
+
+Considering the criteria below will help you understand this book more easily.    
+
+  1. Each chapter has its own topic and data. In other words, it is made up of a book, but it is complete in each chapter rather than sequentially.    
+
+  2. The content of this book is to learn various techniques such as interactive graphs, map views, and regression analysis using data, and you can discover the characteristics of each chapter.    
+
+  3. For the more convenient readability of the reader, some contents are not displayed.
+
+
+```{r include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+```
