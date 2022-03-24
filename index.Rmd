@@ -14,10 +14,10 @@ description: |
 new_session: yes
 link-citations: yes
 delete_merged_file: true
+output_dir: "docs"
 language:
   ui:
     chapter_name: "Chapter "
-github-repo: rstudio/bookdown-demo
 ---
 
 # About
