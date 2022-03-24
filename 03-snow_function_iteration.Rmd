@@ -1,0 +1,219 @@
+---
+title: "Snow Data Assignment: Web Scraping, Functions, and Iteration"
+author: "AJ Leer"
+date: "2-8-2022"
+output: html_document
+---
+
+```{r setup_3, include=FALSE}
+library(rvest)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+
+```
+
+# Snow function iteration
+
+## Simple web scraping
+
+R can read html using either rvest, xml, or xml2 packages. Here we are going to navigate to the Center for Snow and Avalance Studies  [Website](https://snowstudies.org/archived-data/) and read a table in. This table contains links to data we want to programatically download for three sites. We don't know much about these sites, but they contain incredibly rich snow, temperature, and precip data. 
+
+
+## Q1. Reading an html 
+
+### Extract txt links from webpage
+
+```{r}
+site_url <- 'https://snowstudies.org/archived-data/'
+
+#Read the web url
+webpage <- read_html(site_url)
+
+#See if we can extract tables and get the data that way
+tables <- webpage %>%
+  html_nodes('table') %>%
+  magrittr::extract2(3) %>%
+  html_table(fill = TRUE)
+
+#That didn't work, so let's try a different approach
+
+#Extract only weblinks and then the URLs!
+links <- webpage %>%
+  html_nodes('a') %>%
+  .[grepl('forcing',.)] %>%
+  html_attr('href')
+
+```
+
+## Q2. Data Download
+
+### Download data in a for loop
+
+```{r}
+
+#Grab only the name of the file by splitting out on forward slashes
+splits <- str_split_fixed(links,'/',8)
+
+#Keep only the 7th column
+dataset <- splits[,8] 
+
+#generate a file list for where the data goes
+file_names <- paste0('data/', dataset)
+
+for(i in 1:2){
+  download.file(links[i],destfile=file_names[i])
+}
+
+downloaded <- file.exists(file_names)
+
+evaluate <- !all(downloaded)
+
+```
+
+
+### Download data in a map
+
+```{r}
+
+#Map version of the same for loop (downloading 3 files)
+if(evaluate == T){
+  map2(links[1:2],file_names[1:2],download.file)
+}else{print('data already downloaded')}
+
+```
+
+## Q3. Read pdf to make a new column header appending a site column
+
+```{r, message=F}
+
+#Grabs the variable names from the metadata pdf file
+library(pdftools)
+headers <- pdf_text('https://snowstudies.org/wp-content/uploads/2022/02/Serially-Complete-Metadata-text08.pdf') %>%
+  readr::read_lines(.) %>%
+  trimws(.) %>%
+  str_split_fixed(.,'\\.',2) %>%
+  .[,2] %>%
+  .[1:26] %>%
+  str_trim(side = "left") %>% 
+  append("site")
+
+```
+
+
+## Q4. Read the forcing data using map function and summary
+
+```{r}
+#Read the data as a map function 
+our_forcing_reader <- function(file){
+  name = str_split_fixed(file,'/',2)[,2] %>%
+    gsub('_Forcing_Data.txt','',.) %>% 
+    gsub('SBB_','',.) 
+    df <- read.delim(file, header = F, sep = "", col.names = headers) %>%
+    select(year, month, air.temp..K., site) %>%
+    mutate(site = name)
+}
+
+forcing_data_full <- map_dfr(file_names, our_forcing_reader) 
+
+summary(forcing_data_full)
+
+```
+
+
+## Q5. Plot mean temperature data
+**A: The mean temperature in SASP is always warmer than the one of SBSP.** 
+```{r, message=F, fig.cap='The mean temperature', fig.align='center'}
+#make annually mean temperature data frame
+temp_yearly <- forcing_data_full %>%
+  group_by(year, site) %>%
+  summarize(mean_temp = mean(air.temp..K.,na.rm=T))
+
+#plot graph
+ggplot(temp_yearly,aes(x=year,y=mean_temp,color=site)) + 
+  geom_point() +
+  geom_line() +
+  labs(x='Year', y='Mean temperature (Kelvin)') +
+  ggthemes::theme_few() + 
+  ggthemes::scale_color_few() +
+  theme(legend.position=c(0.8,0.3))
+
+```
+
+
+## Q6. Plot monthly average temperature
+**A: As can be seen graphs below, the monthly average temperature at the SASP(Snow Angel Study Plot) is always higher than the one of SBSP(Senator Beck Study Plot) in any given years from 2005 to 2010. So, we can't say that SBSP is warmer than SASP**
+
+```{r, message=F, fig.cap='Monthly average temperature by year', fig.show='hold', fig.align='center', out.width='50%'}
+#make monthly temperature data frame
+temp_monthly <- forcing_data_full %>% 
+  group_by(year, month, site) %>% 
+  summarize(average_temp = mean(air.temp..K.,na.rm=T))
+
+#plot the graph by given year(2005~2010)
+for(i in 2005:2010){
+  temp_monthly_by_year <- filter(temp_monthly, year==i)
+  plot(ggplot(temp_monthly_by_year, aes(x=month, y=average_temp, color = site)) + 
+   geom_point() +
+   geom_line() +
+   ggthemes::theme_few() + 
+   ggthemes::scale_color_few() +
+   theme(legend.position=c(0.1,0.8)) +
+   labs(title=i, y="Monthly Mean Temperature (K)", x="Month"))
+}
+ 
+```
+
+
+
+## Bonus1, Daily precipitation by year
+```{r, message=F, fig.cap="Daily precipitation by year", fig.align='center'}
+#Read the data as a map function & append a site column to the data
+
+our_precip_reader <- function(file){
+  name = str_split_fixed(file,'/',2)[,2] %>%
+    gsub('_Forcing_Data.txt','',.) %>% 
+    gsub('SBB_','',.)
+    df <- read.delim(file, header = F, sep = "", col.names = headers) %>%
+    select(year, month, day, precip..kg.m.2.s.1.) %>%
+    mutate(site = name)
+}
+
+precip_data_full <- map_dfr(file_names, our_precip_reader) 
+
+
+#average daily precipitation by year
+
+precip_yearly <- precip_data_full %>%
+  group_by(year, month, day, site) %>%
+  summarize(daily_precip = mean(precip..kg.m.2.s.1.,na.rm=T)*24*3600)
+
+ggplot(precip_yearly,aes(x=year,y=daily_precip, color=site)) + 
+  geom_point() +
+  geom_line() +
+  labs(x="Year", y="Daily Precipitation (mm)") +
+  ggthemes::theme_few() + 
+  ggthemes::scale_color_few() +
+  theme(legend.position=c(0.8,0.8))
+
+```
+
+## Bonus2, yearly plots of percipitation by day of year
+```{r, message=F, fig.cap="Yearly plots of Daily precipitation by year", fig.align='center'}
+precip_daily <- precip_data_full %>% 
+  group_by(year, month, site) %>% 
+  summarize(average_day_precip = mean(precip..kg.m.2.s.1.,na.rm=T)*24*3600)
+
+#plot the graph by given year(2005~2010)
+par(mfrow=c(2,3))
+
+for(i in 2005:2010){
+  precip_daily_by_year <- filter(precip_daily, year==i)   
+  plot(x=precip_daily_by_year$month, y=precip_daily_by_year$average_day_precip,
+       xlab="month", ylab="average daily precipitation (mm)", main = i,
+       type="b")
+}
+
+
+```
+

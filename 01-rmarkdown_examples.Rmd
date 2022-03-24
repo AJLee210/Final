@@ -1,0 +1,82 @@
+# Poudre River Overview
+
+
+
+```{r setup_1, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dataRetrieval)
+library(dygraphs)
+library(xts)
+```
+
+
+
+
+The Poudre River is the main source of water for Fort Collins, flowing from the peaks of the Rocky Mountains into the western vast plains. The river travels through a variety of terrain, exhibiting ever-changing quantities that change with the seasons. **By observing the discharge of the Poudre River, I want to understand the characteristics of the river.**
+
+
+## Site
+
+![](https://i0.wp.com/coyotegulch.blog/wp-content/uploads/2011/02/cachelapoudreriver.jpg)
+
+
+## Data Acquisition and Plotting tests
+
+### Data Download
+
+I collect water discharge data upstream and downstream of Poudre by using NWIS dataset. 
+
+```{r downloader}
+
+Up <- readNWISdv(siteNumbers = '06752260',
+                parameterCd = '00060',
+                startDate = '2017-01-01',
+                endDate = '2020-01-01') %>%
+  rename(Q_up = 'X_00060_00003')
+
+
+Down <- readNWISdv(siteNumbers = '06752280',
+                parameterCd = '00060',
+                startDate = '2017-01-01',
+                endDate = '2020-01-01') %>%
+  rename(Q_down = 'X_00060_00003') 
+
+River <- merge (Up, Down, by='Date')
+
+```
+
+
+### Interactive Data Plotter 
+
+```{r, fig.cap='Discharge of the Poudre', out.width='80%', fig.asp=.75, fig.align='center'}
+
+Up_xts <- xts(River$Q_up, order.by = River$Date)
+Down_xts <- xts(River$Q_down, order.by = River$Date)
+Discharge <- cbind(Up_xts, Down_xts)
+dygraph(Discharge, main = "Discharge of Poudre") %>%
+  dySeries("Up_xts", label = "Upstream(cfs)") %>%
+  dySeries("Down_xts", label = "Downstream(cfs)") %>%
+  dyLegend(show = "always", hideOnMouseOut = FALSE)
+
+
+
+```
+
+
+## Conclusions
+
+**The Poudre River has several characteristics as below:**
+
+- The Poudre river tends to decrease its discharge over time. This is probably seemed due to less snow, a major water resource of the Poudre.
+  **Is it the impact of climate change?**
+[climate change impact](https://www.colorado.edu/ecenter/energy-climate-justice/general-energy-climate-info/climate-change/impacts-colorado)
+
+- *The Flow tends to decrease as going downstream. This is believed to be due to either a runoff of water for cultivating nearby agricultural land or a sharply reduced flow rate as it approaches the plains.*
+
+- Do you know that the main fish that inhabits in the Poudre is Brown trout that is non-native fish?
+ [Poudre fishing report](https://troutunderground.com/Cache-La-Poudre-River-Fishing-Report/)
+  
+- Finally, I think one of the most fun things to do in Poudre is rafting along the rough rivers in summer. If you do not yet, try it this summer. **Have some cool fun in Poudre**
+![](https://www.awanderlustadventure.com/wordpress/wp-content/uploads/2015/01/DSC0253.jpg)
